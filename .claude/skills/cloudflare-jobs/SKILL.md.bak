@@ -1,0 +1,118 @@
+---
+name: cloudflare-jobs
+description: "Use when the user asks to fetch Cloudflare jobs in this repo, update /api/cloudflare/open-positions logic, or change how the dashboard renders filtered Cloudflare roles."
+---
+
+# Cloudflare Jobs Fetcher
+
+## Purpose
+
+Implement or modify the Cloudflare jobs flow used by this codebase:
+
+- Backend fetches and filters jobs in `/api/cloudflare/open-positions`.
+- Frontend fetches that endpoint and renders cards in `public/app.js`.
+- Output shape must stay compatible with `renderCloudflareJobs`.
+
+## Use When
+
+- The user asks to fetch Cloudflare openings in this project.
+- The user wants to change location or title matching rules.
+- The user wants changes reflected in the dashboard metrics and cards.
+- The user reports UI breakage after Cloudflare response shape changes.
+
+## Inputs
+
+- locationFilter: String used by backend for case-insensitive matching.
+- titleRegex: Regex for matching role titles.
+- titleFilters: String list returned in response metadata.
+
+Default filters:
+
+- locationFilter: lisbon, portugal
+- titleRegex: /\b(ai|data)\b/i
+- titleFilters: ["ai", "data"]
+
+## Data Source
+
+Use the same source as the backend route:
+
+https://boards-api.greenhouse.io/v1/boards/cloudflare/departments/?render_as=tree
+
+## Workflow
+
+1. Fetch Cloudflare departments tree from Greenhouse.
+2. Flatten nested departments into a single jobs list with `flattenDepartments`.
+3. Resolve job locations with `getJobPostingLocations` from metadata first, then fallback to `job.location.name`.
+4. Normalize each job exactly as backend expects:
+   - id
+   - title
+   - url
+   - postingLocations
+   - location
+   - firstPublished
+5. Filter jobs where:
+   - any posting location includes the locationFilter string, and
+   - titleRegex matches title.
+6. Sort by firstPublished descending.
+7. Return response shape compatible with frontend rendering.
+
+## Repo Contracts
+
+- Backend route: `/api/cloudflare/open-positions` in `server.js`.
+- Frontend fetch caller: `fetchCloudflareJobs` in `public/app.js`.
+- Frontend renderer: `renderCloudflareJobs` in `public/app.js`.
+
+Do not remove or rename these response keys without updating frontend code:
+
+- ok
+- source
+- filters
+- fetchedAt
+- totalFetched
+- totalMatching
+- jobs
+
+## Output Contract
+
+Return JSON with this shape:
+
+{
+  "ok": true,
+  "source": "https://www.cloudflare.com/en-gb/careers/jobs/?location=Lisbon%2C+Portugal&title=ai",
+  "filters": {
+    "location": "Lisbon, Portugal",
+    "title": ["ai", "data"]
+  },
+  "totalFetched": 0,
+  "totalMatching": 0,
+  "fetchedAt": "ISO-8601",
+  "jobs": [
+    {
+      "id": 0,
+      "title": "",
+      "location": "",
+      "url": "",
+      "postingLocations": [],
+      "firstPublished": ""
+    }
+  ]
+}
+
+If fetch fails, return:
+
+{
+  "ok": false,
+  "error": "Failed to fetch Cloudflare jobs feed.",
+  "detail": {
+    "status": 0,
+    "statusText": "",
+    "data": ""
+  }
+}
+
+## Notes
+
+- Keep filtering case-insensitive.
+- Keep output field names aligned with `public/app.js`.
+- `renderCloudflareJobs` expects job fields `url`, `title`, `location`, and `firstPublished`.
+- Preserve `totalMatching` because it is used in activity logs and dashboard metrics.
