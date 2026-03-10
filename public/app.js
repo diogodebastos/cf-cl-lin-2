@@ -6,18 +6,11 @@ const statusText = $("status-text");
 const statusDot = $("status-dot");
 const fetchedAtEl = $("fetched-at");
 const scopeEl = $("scope");
-const outputEl = $("json-output");
 const profileNameEl = $("profile-name");
 const profilePictureEl = $("profile-picture");
 const cvSection = $("cv-section");
 const cvContent = $("cv-content");
 const cvDownloadBtn = $("cv-download-btn");
-const previewBtn = $("preview-btn");
-const clearBtn = $("clear-btn");
-const postBtn = $("post-btn");
-const postText = $("post-text");
-const postStatus = $("post-status");
-const postOutput = $("post-output");
 const cloudflareMeta = $("cloudflare-meta");
 const cloudflareJobs = $("cloudflare-jobs");
 const cloudflareRefreshBtn = $("cloudflare-refresh");
@@ -33,16 +26,7 @@ const chartConnections = $("chart-connections");
 const chartPosts = $("chart-posts");
 const chartMessages = $("chart-messages");
 
-const tabProfile = $("tab-profile");
-const tabCompose = $("tab-compose");
-const tabPayload = $("tab-payload");
-const panelProfile = $("panel-profile");
-const panelCompose = $("panel-compose");
-const panelPayload = $("panel-payload");
-
-let lastDirectPictureUrl = "";
 let cloudflareLoaded = false;
-let publishedPosts = 0;
 let cvLoaded = false;
 let metricCharts = [];
 
@@ -75,74 +59,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function showLeftTab(tab) {
-  const tabs = [
-    [tabProfile, panelProfile, tab === "profile"],
-    [tabCompose, panelCompose, tab === "compose"],
-    [tabPayload, panelPayload, tab === "payload"],
-  ];
-
-  for (const [button, panel, active] of tabs) {
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-selected", String(active));
-    panel.classList.toggle("is-active", active);
-    panel.hidden = !active;
-  }
-}
-
-function renderProfileSnapshot(data) {
-  const userInfo = data?.apiResults?.userinfo?.data;
-  const name = userInfo?.name || "Not available yet";
-  const picture =
-    userInfo?.picture ||
-    data?.idTokenClaims?.picture ||
-    data?.publicProfile?.data?.image ||
-    "";
-
-  profileNameEl.textContent = name;
-
-  if (picture) {
-    lastDirectPictureUrl = picture;
-    profilePictureEl.src = `/api/linkedin/photo?url=${encodeURIComponent(picture)}`;
-    profilePictureEl.hidden = false;
-    profilePictureEl.alt = `${name} profile photo`;
-  } else {
-    profilePictureEl.hidden = true;
-    profilePictureEl.removeAttribute("src");
-    profilePictureEl.alt = "LinkedIn profile";
-  }
-}
-
-profilePictureEl.addEventListener("error", () => {
-  if (lastDirectPictureUrl && profilePictureEl.src !== lastDirectPictureUrl) {
-    profilePictureEl.src = lastDirectPictureUrl;
-    return;
-  }
-
-  profilePictureEl.hidden = true;
-});
-
-function renderData(data, source) {
-  if (!data) {
-    outputEl.textContent = "No data yet.";
-    fetchedAtEl.textContent = "None";
-    scopeEl.textContent = "Unknown";
-    setStatus("Idle", false);
-    renderProfileSnapshot(null);
-    cvSection.hidden = true;
-    return;
-  }
-
-  fetchedAtEl.textContent = data.fetchedAt || "Unknown";
-  scopeEl.textContent = data.tokenMeta?.scopeRequested || data.scopeRequested || "Unknown";
-  setStatus(`Loaded: ${source}`, true);
-  renderProfileSnapshot(data);
-  outputEl.textContent = JSON.stringify(data, null, 2);
-  cvSection.hidden = false;
-
-  if (!cvLoaded) {
-    loadCv();
-  }
+function renderProfileSnapshot() {
+  profileNameEl.textContent = "Claude Takes Control Until Cloudflare Hires Me";
+  profilePictureEl.src = "/1768391378809_px.png";
+  profilePictureEl.hidden = false;
+  profilePictureEl.alt = "Claude Takes Control Until Cloudflare Hires Me profile photo";
 }
 
 async function loadCv() {
@@ -197,12 +118,6 @@ async function downloadCvPdf() {
   } finally {
     cvDownloadBtn.disabled = false;
   }
-}
-
-function setPostState(status, output) {
-  postStatus.textContent = status;
-  postOutput.textContent =
-    typeof output === "string" ? output : JSON.stringify(output, null, 2);
 }
 
 function renderCloudflareJobs(payload) {
@@ -388,99 +303,15 @@ async function fetchCloudflareJobs() {
   }
 }
 
-async function publishPost() {
-  const text = postText.value.trim();
-  if (!text) {
-    setPostState("Missing text", { ok: false, error: "Write something before posting." });
-    return;
-  }
-
-  postBtn.disabled = true;
-  setPostState("Publishing...", "Sending post to LinkedIn...");
-
-  try {
-    const response = await fetch("/api/linkedin/post", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text }),
-    });
-
-    const result = await response.json();
-    if (!response.ok || !result.ok) {
-      setPostState("Publish failed", result);
-      addLog("LinkedIn post publish failed");
-      return;
-    }
-
-    setPostState("Published", result);
-    publishedPosts += 1;
-    addLog("LinkedIn post published");
-  } catch (error) {
-    setPostState("Publish failed", { ok: false, error: error.message || "Unknown error" });
-    addLog("LinkedIn post publish failed due to network/runtime error");
-  } finally {
-    postBtn.disabled = false;
-  }
-}
-
-async function fetchPreview() {
-  try {
-    setStatus("Fetching preview...", true);
-    const response = await fetch("/api/linkedin/preview");
-    const data = await response.json();
-    localStorage.setItem("linkedinData", JSON.stringify(data));
-    renderData(data, "preview");
-    addLog("LinkedIn preview fetched");
-  } catch (error) {
-    setStatus("Preview failed", false);
-    outputEl.textContent = JSON.stringify({ error: error.message || "Unknown error" }, null, 2);
-    addLog("LinkedIn preview failed");
-  }
-}
-
-function loadFromLocalStorage() {
-  const params = new URLSearchParams(window.location.search);
-  const oauthError = params.get("oauthError");
-  if (oauthError) {
-    setStatus("OAuth error", false);
-    outputEl.textContent = decodeURIComponent(oauthError);
-    addLog("OAuth error returned from LinkedIn");
-    return;
-  }
-
-  const raw = localStorage.getItem("linkedinData");
-  if (!raw) {
-    renderData(null, "none");
-    return;
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    renderData(parsed, "local storage");
-    addLog("Loaded LinkedIn data from local snapshot");
-  } catch (_error) {
-    renderData(null, "none");
-  }
-}
-
-previewBtn.addEventListener("click", fetchPreview);
-clearBtn.addEventListener("click", () => {
-  localStorage.removeItem("linkedinData");
-  renderData(null, "none");
-  addLog("Local LinkedIn snapshot cleared");
-});
-postBtn.addEventListener("click", publishPost);
 cloudflareRefreshBtn.addEventListener("click", fetchCloudflareJobs);
 metricsRefreshBtn.addEventListener("click", fetchLinkedInMetrics);
 cvDownloadBtn.addEventListener("click", downloadCvPdf);
 
-tabProfile.addEventListener("click", () => showLeftTab("profile"));
-tabCompose.addEventListener("click", () => showLeftTab("compose"));
-tabPayload.addEventListener("click", () => showLeftTab("payload"));
-
-loadFromLocalStorage();
+fetchedAtEl.textContent = "Profile locked";
+scopeEl.textContent = "N/A";
+setStatus("Profile linked", true);
+renderProfileSnapshot();
+loadCv();
 fetchCloudflareJobs();
 fetchLinkedInMetrics();
 addLog("Dashboard initialized");
