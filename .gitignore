@@ -9,3 +9,12 @@ pnpm-debug.log*
 coverage/
 data/*.db
 data/*.db-*
+
+# Cloudflare local state and caches
+.wrangler/
+
+# Local/generated Copilot skill experiments
+.claude/skills/linkedin-post-dashboard/
+
+# Timestamped imported image drops (keep curated assets trackable)
+assets/*_px.png
