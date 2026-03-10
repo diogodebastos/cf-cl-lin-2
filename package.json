@@ -1,19 +1,20 @@
 {
-  "name": "linkedin-inspector",
+  "name": "twitter-mission-console",
   "version": "1.0.0",
-  "description": "Fetch and display LinkedIn profile data available through API and public page metadata",
-  "main": "server.js",
+  "description": "Fetch and display X (Twitter) profile metrics and Cloudflare campaign dashboard data",
+  "main": "src/worker.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node --watch server.js",
-    "dev:worker": "wrangler dev",
+    "start": "wrangler dev --remote",
+    "dev": "wrangler dev --remote",
+    "dev:worker": "wrangler dev --remote",
     "deploy:worker": "wrangler deploy",
-    "d1:migrate": "wrangler d1 execute linkedin_metrics --remote --file=./migrations/0001_init.sql"
+    "d1:migrate": "wrangler d1 execute twitter_metrics --remote --command \"CREATE TABLE IF NOT EXISTS twitter_metrics (date TEXT PRIMARY KEY, following INTEGER NOT NULL, followers INTEGER NOT NULL);\"",
+    "d1:migrate:local": "wrangler d1 execute twitter_metrics --local --command \"CREATE TABLE IF NOT EXISTS twitter_metrics (date TEXT PRIMARY KEY, following INTEGER NOT NULL, followers INTEGER NOT NULL);\""
   },
   "keywords": [
-    "linkedin",
-    "oauth",
-    "profile"
+    "twitter",
+    "x",
+    "metrics"
   ],
   "author": "",
   "license": "MIT",
@@ -21,11 +22,7 @@
     "wrangler": "^4.5.0"
   },
   "dependencies": {
-    "axios": "^1.8.4",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
     "markdown-it": "^14.1.1",
-    "pdfkit": "^0.17.2",
-    "sqlite3": "^5.1.7"
+    "pdfkit": "^0.17.2"
   }
 }

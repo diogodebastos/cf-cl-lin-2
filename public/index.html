@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>LinkedIn Mission Console</title>
+    <title>X Mission Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,7 +15,7 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand">LINKEDIN<em>×</em>CLAUDE<em>×</em>CLOUDFLARE</div>
+        <div class="brand">X<em>×</em>CLAUDE<em>×</em>CLOUDFLARE</div>
         <div class="topbar-right">
           <span class="badge">Scope: <strong id="scope">Unknown</strong></span>
           <span class="badge">Last Fetch: <strong id="fetched-at">None</strong></span>
@@ -25,42 +25,34 @@
 
       <section class="metrics-bar">
         <article class="metric">
-          <p class="metric-value orange" id="metric-profile-views">—</p>
-          <p class="metric-label">Profile Views</p>
+          <p class="metric-value orange" id="metric-following">—</p>
+          <p class="metric-label">Following</p>
         </article>
         <article class="metric">
-          <p class="metric-value blue" id="metric-connections">—</p>
-          <p class="metric-label">Connections</p>
-        </article>
-        <article class="metric">
-          <p class="metric-value green" id="metric-li-posts">—</p>
-          <p class="metric-label">LI Posts</p>
-        </article>
-        <article class="metric">
-          <p class="metric-value" style="color:#ffca28" id="metric-messages-sent">—</p>
-          <p class="metric-label">Messages Sent</p>
+          <p class="metric-value blue" id="metric-followers">—</p>
+          <p class="metric-label">Followers</p>
         </article>
       </section>
 
       <main class="main-grid">
         <section class="panel profile-panel">
           <div class="panel-head">
-            <h2>LinkedIn Profile</h2>
+            <h2>X Profile</h2>
           </div>
 
           <div class="panel-body">
             <div class="tab-panel is-active" id="panel-profile" role="tabpanel">
               <a
                 class="profile-link"
-                href="https://www.linkedin.com/in/claude-takes-control-until-cloudflare-hires-me/"
+                href="https://x.com/jilvaa198175"
                 target="_blank"
                 rel="noreferrer"
               >
                 <div class="profile-card">
-                <img id="profile-picture" class="profile-picture" alt="LinkedIn profile" src="/1768391378809_px.png" />
+                <img id="profile-picture" class="profile-picture" alt="X profile" src="/1768391378809_px.png" />
                 <div>
                   <p class="label">Name</p>
-                  <p class="profile-name" id="profile-name">Claude Takes Control Until Cloudflare Hires Me</p>
+                  <p class="profile-name" id="profile-name">@jilvaa198175</p>
                 </div>
               </div>
               </a>
@@ -77,34 +69,22 @@
 
         <section class="panel plots-panel">
           <div class="panel-head">
-            <h2>LinkedIn Metrics Evolution</h2>
+            <h2>X Metrics Evolution</h2>
             <button class="btn secondary compact" id="metrics-refresh" type="button">Refresh</button>
           </div>
           <div class="panel-body">
             <p id="metrics-meta" class="muted">No metrics fetch yet.</p>
             <div class="chart-grid">
               <article class="chart-card">
-                <p class="chart-title">Profile Views</p>
+                <p class="chart-title">Following</p>
                 <div class="chart-canvas-wrap">
-                  <canvas id="chart-profile-views" aria-label="Profile views evolution" role="img"></canvas>
+                  <canvas id="chart-following" aria-label="Following evolution" role="img"></canvas>
                 </div>
               </article>
               <article class="chart-card">
-                <p class="chart-title">Connections</p>
+                <p class="chart-title">Followers</p>
                 <div class="chart-canvas-wrap">
-                  <canvas id="chart-connections" aria-label="Connections evolution" role="img"></canvas>
-                </div>
-              </article>
-              <article class="chart-card">
-                <p class="chart-title">Posts</p>
-                <div class="chart-canvas-wrap">
-                  <canvas id="chart-posts" aria-label="Posts evolution" role="img"></canvas>
-                </div>
-              </article>
-              <article class="chart-card">
-                <p class="chart-title">Messages Sent</p>
-                <div class="chart-canvas-wrap">
-                  <canvas id="chart-messages" aria-label="Messages sent evolution" role="img"></canvas>
+                  <canvas id="chart-followers" aria-label="Followers evolution" role="img"></canvas>
                 </div>
               </article>
             </div>

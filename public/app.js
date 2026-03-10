@@ -14,17 +14,13 @@ const cvDownloadBtn = $("cv-download-btn");
 const cloudflareMeta = $("cloudflare-meta");
 const cloudflareJobs = $("cloudflare-jobs");
 const cloudflareRefreshBtn = $("cloudflare-refresh");
-const metricProfileViews = $("metric-profile-views");
-const metricConnections = $("metric-connections");
-const metricLiPosts = $("metric-li-posts");
-const metricMessagesSent = $("metric-messages-sent");
+const metricFollowing = $("metric-following");
+const metricFollowers = $("metric-followers");
 const activityLog = $("activity-log");
 const metricsMeta = $("metrics-meta");
 const metricsRefreshBtn = $("metrics-refresh");
-const chartProfileViews = $("chart-profile-views");
-const chartConnections = $("chart-connections");
-const chartPosts = $("chart-posts");
-const chartMessages = $("chart-messages");
+const chartFollowing = $("chart-following");
+const chartFollowers = $("chart-followers");
 
 let cloudflareLoaded = false;
 let cvLoaded = false;
@@ -60,10 +56,10 @@ function escapeHtml(value) {
 }
 
 function renderProfileSnapshot() {
-  profileNameEl.textContent = "Claude Takes Control Until Cloudflare Hires Me";
+  profileNameEl.textContent = "@jilvaa198175";
   profilePictureEl.src = "/1768391378809_px.png";
   profilePictureEl.hidden = false;
-  profilePictureEl.alt = "Claude Takes Control Until Cloudflare Hires Me profile photo";
+  profilePictureEl.alt = "@jilvaa198175 profile photo";
 }
 
 async function loadCv() {
@@ -215,7 +211,7 @@ function buildMetricChart(canvas, labels, values, color) {
   });
 }
 
-function renderLinkedInMetrics(payload) {
+function renderTwitterMetrics(payload) {
   const rows = Array.isArray(payload?.rows) ? payload.rows : [];
 
   if (rows.length === 0) {
@@ -225,48 +221,42 @@ function renderLinkedInMetrics(payload) {
   }
 
   const labels = rows.map((row) => new Date(`${row.date}T00:00:00`).toLocaleDateString());
-  const profileViewsSeries = rows.map((row) => row.profileViews);
-  const connectionsSeries = rows.map((row) => row.connections);
-  const postsSeries = rows.map((row) => row.posts);
-  const messagesSeries = rows.map((row) => row.messagesSent);
+  const followingSeries = rows.map((row) => row.following);
+  const followersSeries = rows.map((row) => row.followers);
   const latest = rows[rows.length - 1];
 
   metricsMeta.textContent = `Rows: ${rows.length} | Latest: ${latest.date} | Last fetch: ${new Date(
     payload.fetchedAt
   ).toLocaleString()}`;
 
-  metricProfileViews.textContent = latest.profileViews;
-  metricConnections.textContent = latest.connections;
-  metricLiPosts.textContent = latest.posts;
-  metricMessagesSent.textContent = latest.messagesSent;
+  metricFollowing.textContent = latest.following;
+  metricFollowers.textContent = latest.followers;
 
   destroyMetricCharts();
 
-  metricCharts.push(buildMetricChart(chartProfileViews, labels, profileViewsSeries, "#f6821f"));
-  metricCharts.push(buildMetricChart(chartConnections, labels, connectionsSeries, "#2979ff"));
-  metricCharts.push(buildMetricChart(chartPosts, labels, postsSeries, "#00e676"));
-  metricCharts.push(buildMetricChart(chartMessages, labels, messagesSeries, "#ffca28"));
+  metricCharts.push(buildMetricChart(chartFollowing, labels, followingSeries, "#f6821f"));
+  metricCharts.push(buildMetricChart(chartFollowers, labels, followersSeries, "#2979ff"));
 }
 
-async function fetchLinkedInMetrics() {
+async function fetchTwitterMetrics() {
   metricsRefreshBtn.disabled = true;
-  metricsMeta.textContent = "Loading local LinkedIn metrics...";
+  metricsMeta.textContent = "Loading local X metrics...";
 
   try {
-    const response = await fetch("/api/linkedin/metrics-history");
+    const response = await fetch("/api/twitter/metrics-history");
     const result = await response.json();
 
     if (!response.ok || !result.ok) {
-      metricsMeta.textContent = "Failed to load local LinkedIn metrics.";
-      addLog("LinkedIn metrics fetch failed");
+      metricsMeta.textContent = "Failed to load local X metrics.";
+      addLog("X metrics fetch failed");
       return;
     }
 
-    renderLinkedInMetrics(result);
-    addLog(`LinkedIn metrics loaded (${result.count} rows)`);
+    renderTwitterMetrics(result);
+    addLog(`X metrics loaded (${result.count} rows)`);
   } catch (error) {
-    metricsMeta.textContent = "Failed to load local LinkedIn metrics.";
-    addLog("LinkedIn metrics fetch failed due to network/runtime error");
+    metricsMeta.textContent = "Failed to load local X metrics.";
+    addLog("X metrics fetch failed due to network/runtime error");
   } finally {
     metricsRefreshBtn.disabled = false;
   }
@@ -304,7 +294,7 @@ async function fetchCloudflareJobs() {
 }
 
 cloudflareRefreshBtn.addEventListener("click", fetchCloudflareJobs);
-metricsRefreshBtn.addEventListener("click", fetchLinkedInMetrics);
+metricsRefreshBtn.addEventListener("click", fetchTwitterMetrics);
 cvDownloadBtn.addEventListener("click", downloadCvPdf);
 
 fetchedAtEl.textContent = "Profile locked";
@@ -313,5 +303,5 @@ setStatus("Profile linked", true);
 renderProfileSnapshot();
 loadCv();
 fetchCloudflareJobs();
-fetchLinkedInMetrics();
+fetchTwitterMetrics();
 addLog("Dashboard initialized");
