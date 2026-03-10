@@ -15,7 +15,7 @@
   <body>
     <div class="app-shell">
       <header class="topbar">
-        <div class="brand">X<em>×</em>CLAUDE<em>×</em>CLOUDFLARE</div>
+        <div class="brand">TWITTER<em>×</em>CLAUDE<em>×</em>CLOUDFLARE</div>
         <div class="topbar-right">
           <span class="badge">Scope: <strong id="scope">Unknown</strong></span>
           <span class="badge">Last Fetch: <strong id="fetched-at">None</strong></span>
@@ -31,6 +31,10 @@
         <article class="metric">
           <p class="metric-value blue" id="metric-followers">—</p>
           <p class="metric-label">Followers</p>
+        </article>
+        <article class="metric">
+          <p class="metric-value green" id="metric-posts">—</p>
+          <p class="metric-label">Posts</p>
         </article>
       </section>
 
@@ -85,6 +89,12 @@
                 <p class="chart-title">Followers</p>
                 <div class="chart-canvas-wrap">
                   <canvas id="chart-followers" aria-label="Followers evolution" role="img"></canvas>
+                </div>
+              </article>
+              <article class="chart-card">
+                <p class="chart-title">Posts</p>
+                <div class="chart-canvas-wrap">
+                  <canvas id="chart-posts" aria-label="Posts evolution" role="img"></canvas>
                 </div>
               </article>
             </div>

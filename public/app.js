@@ -16,11 +16,13 @@ const cloudflareJobs = $("cloudflare-jobs");
 const cloudflareRefreshBtn = $("cloudflare-refresh");
 const metricFollowing = $("metric-following");
 const metricFollowers = $("metric-followers");
+const metricPosts = $("metric-posts");
 const activityLog = $("activity-log");
 const metricsMeta = $("metrics-meta");
 const metricsRefreshBtn = $("metrics-refresh");
 const chartFollowing = $("chart-following");
 const chartFollowers = $("chart-followers");
+const chartPosts = $("chart-posts");
 
 let cloudflareLoaded = false;
 let cvLoaded = false;
@@ -223,6 +225,7 @@ function renderTwitterMetrics(payload) {
   const labels = rows.map((row) => new Date(`${row.date}T00:00:00`).toLocaleDateString());
   const followingSeries = rows.map((row) => row.following);
   const followersSeries = rows.map((row) => row.followers);
+  const postsSeries = rows.map((row) => row.posts ?? 0);
   const latest = rows[rows.length - 1];
 
   metricsMeta.textContent = `Rows: ${rows.length} | Latest: ${latest.date} | Last fetch: ${new Date(
@@ -231,11 +234,13 @@ function renderTwitterMetrics(payload) {
 
   metricFollowing.textContent = latest.following;
   metricFollowers.textContent = latest.followers;
+  metricPosts.textContent = latest.posts ?? 0;
 
   destroyMetricCharts();
 
   metricCharts.push(buildMetricChart(chartFollowing, labels, followingSeries, "#f6821f"));
   metricCharts.push(buildMetricChart(chartFollowers, labels, followersSeries, "#2979ff"));
+  metricCharts.push(buildMetricChart(chartPosts, labels, postsSeries, "#00e676"));
 }
 
 async function fetchTwitterMetrics() {

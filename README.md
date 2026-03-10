@@ -1,5 +1,9 @@
 # X Mission Console
 
+**Take control of this X account until Cloudflare hires Diogo de Bastos.**
+
+This repo is a personal campaign tool. Every feature exists to serve that goal: monitoring X activity, composing and posting content, tracking metrics, interacting with followers, fetching Cloudflare job openings, and keeping the CV sharp. When suggesting changes or new features, always ask: *does this help get Diogo hired at Cloudflare?*
+
 A D1-only Worker app to run your Cloudflare hiring campaign while tracking X (Twitter) presence.
 
 ## Current X Account
@@ -8,14 +12,28 @@ A D1-only Worker app to run your Cloudflare hiring campaign while tracking X (Tw
 
 ## Metrics Model
 
-The app now tracks only:
+The app tracks:
 
 - `following`
 - `followers`
+- `posts`
+
+`GET /api/twitter/metrics` returns:
+
+```json
+{
+	"ok": true,
+	"metrics": {
+		"following": 441,
+		"followers": 563,
+		"posts": 99
+	}
+}
+```
 
 ## Runtime
 
-This project now runs only on Cloudflare Worker + D1.
+This project runs on Cloudflare Worker + D1.
 
 - Local development: `wrangler dev --remote`
 - Production: `wrangler deploy`
@@ -71,13 +89,14 @@ TWITTER_PUBLIC_URL = "https://x.com/jilvaa198175"
 
 ```bash
 npm install
-npm run dev
+npm run dev:worker
 ```
+
+`npm run dev` and `npm start` are aliases for `npm run dev:worker`.
 
 ## Deployment
 
 ```bash
-npm run dev:worker
 npm run deploy:worker
 ```
 

@@ -132,7 +132,7 @@ body::after {
   background: var(--s1);
   border-bottom: 1px solid var(--line);
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .metric {
