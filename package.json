@@ -1,0 +1,25 @@
+{
+  "name": "linkedin-inspector",
+  "version": "1.0.0",
+  "description": "Fetch and display LinkedIn profile data available through API and public page metadata",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "linkedin",
+    "oauth",
+    "profile"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.8.4",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "markdown-it": "^14.1.1",
+    "pdfkit": "^0.17.2",
+    "sqlite3": "^5.1.7"
+  }
+}
