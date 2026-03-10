@@ -43,32 +43,27 @@
       </section>
 
       <main class="main-grid">
-        <section class="panel">
+        <section class="panel profile-panel">
           <div class="panel-head">
-            <h2>LinkedIn Control</h2>
-          </div>
-
-          <div class="actions-bar">
-            <a class="btn primary" href="/auth/linkedin">Authorize</a>
-            <button class="btn secondary" id="preview-btn" type="button">Fetch Preview</button>
-            <button class="btn ghost" id="clear-btn" type="button">Clear</button>
-          </div>
-
-          <div class="tabs" role="tablist" aria-label="left panel tabs">
-            <button class="tab-btn is-active" id="tab-profile" type="button" role="tab" aria-selected="true">Profile</button>
-            <button class="tab-btn" id="tab-compose" type="button" role="tab" aria-selected="false">Compose</button>
-            <button class="tab-btn" id="tab-payload" type="button" role="tab" aria-selected="false">Payload</button>
+            <h2>LinkedIn Profile</h2>
           </div>
 
           <div class="panel-body">
             <div class="tab-panel is-active" id="panel-profile" role="tabpanel">
-              <div class="profile-card">
-                <img id="profile-picture" class="profile-picture" alt="LinkedIn profile" src="" hidden />
+              <a
+                class="profile-link"
+                href="https://www.linkedin.com/in/claude-takes-control-until-cloudflare-hires-me/"
+                target="_blank"
+                rel="noreferrer"
+              >
+                <div class="profile-card">
+                <img id="profile-picture" class="profile-picture" alt="LinkedIn profile" src="/1768391378809_px.png" />
                 <div>
                   <p class="label">Name</p>
-                  <p class="profile-name" id="profile-name">Not available yet</p>
+                  <p class="profile-name" id="profile-name">Claude Takes Control Until Cloudflare Hires Me</p>
                 </div>
               </div>
+              </a>
               <section id="cv-section" class="cv-section" hidden>
                 <div class="cv-head">
                   <p class="label">CV</p>
@@ -76,22 +71,6 @@
                 </div>
                 <div id="cv-content" class="cv-content">Loading CV...</div>
               </section>
-            </div>
-
-            <div class="tab-panel" id="panel-compose" role="tabpanel" hidden>
-              <div class="composer">
-                <label class="label" for="post-text">Post Text</label>
-                <textarea id="post-text" class="post-text" maxlength="3000" placeholder="Write a short update to publish on your LinkedIn profile..."></textarea>
-                <div class="post-row">
-                  <button class="btn primary" id="post-btn" type="button">Publish Post</button>
-                  <p id="post-status">Not posted yet.</p>
-                </div>
-                <pre id="post-output">No publish response yet.</pre>
-              </div>
-            </div>
-
-            <div class="tab-panel" id="panel-payload" role="tabpanel" hidden>
-              <pre id="json-output">No data yet.</pre>
             </div>
           </div>
         </section>
