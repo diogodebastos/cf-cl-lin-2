@@ -2,9 +2,9 @@ import MarkdownIt from "markdown-it";
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
 const defaultTwitterMetricsRows = [
-  { date: "2026-02-24", following: 418, followers: 502 },
-  { date: "2026-03-03", following: 429, followers: 534 },
-  { date: "2026-03-10", following: 441, followers: 563 },
+  { date: "2026-02-24", following: 418, followers: 502, posts: 89 },
+  { date: "2026-03-03", following: 429, followers: 534, posts: 94 },
+  { date: "2026-03-10", following: 441, followers: 563, posts: 99 },
 ];
 
 const cvFiles = {
@@ -418,19 +418,20 @@ function parseMetricsPayload(payload) {
   const date = typeof payload?.date === "string" ? payload.date.trim() : "";
   const following = Number(payload?.following);
   const followers = Number(payload?.followers);
+  const posts = Number(payload?.posts ?? 0);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
     return { ok: false, error: "`date` must be in YYYY-MM-DD format." };
   }
 
-  const values = { following, followers };
+  const values = { following, followers, posts };
   for (const [key, value] of Object.entries(values)) {
     if (!Number.isInteger(value) || value < 0) {
       return { ok: false, error: `\`${key}\` must be a non-negative integer.` };
     }
   }
 
-  return { ok: true, value: { date, following, followers } };
+  return { ok: true, value: { date, following, followers, posts } };
 }
 
 async function initializeTwitterMetricsDb(db) {
@@ -439,22 +440,33 @@ async function initializeTwitterMetricsDb(db) {
       `CREATE TABLE IF NOT EXISTS twitter_metrics (
         date TEXT PRIMARY KEY,
         following INTEGER NOT NULL,
-        followers INTEGER NOT NULL
+        followers INTEGER NOT NULL,
+        posts INTEGER NOT NULL DEFAULT 0
       )`
     )
     .run();
+
+  const tableInfo = await db.prepare("PRAGMA table_info(twitter_metrics)").all();
+  const columns = Array.isArray(tableInfo?.results) ? tableInfo.results : [];
+  const hasPostsColumn = columns.some((column) => column?.name === "posts");
+
+  if (!hasPostsColumn) {
+    await db
+      .prepare("ALTER TABLE twitter_metrics ADD COLUMN posts INTEGER NOT NULL DEFAULT 0")
+      .run();
+  }
 
   const countResult = await db.prepare("SELECT COUNT(*) AS count FROM twitter_metrics").first();
   const count = Number(countResult?.count || 0);
 
   if (count === 0) {
     const statement = db.prepare(
-      `INSERT INTO twitter_metrics (date, following, followers)
-       VALUES (?1, ?2, ?3)`
+      `INSERT INTO twitter_metrics (date, following, followers, posts)
+       VALUES (?1, ?2, ?3, ?4)`
     );
 
     const batchStatements = defaultTwitterMetricsRows.map((row) =>
-      statement.bind(row.date, row.following, row.followers)
+      statement.bind(row.date, row.following, row.followers, row.posts)
     );
 
     await db.batch(batchStatements);
@@ -466,14 +478,19 @@ async function readTwitterMetricsRows(db) {
 
   const result = await db
     .prepare(
-      `SELECT date, following, followers
+      `SELECT date, following, followers, posts
        FROM twitter_metrics
        ORDER BY date ASC`
     )
     .all();
 
   const rows = Array.isArray(result?.results) ? result.results : [];
-  return rows.map((row) => ({ date: row.date, following: row.following, followers: row.followers }));
+  return rows.map((row) => ({
+    date: row.date,
+    following: row.following,
+    followers: row.followers,
+    posts: Number(row.posts ?? 0),
+  }));
 }
 
 async function upsertTwitterMetricsRow(db, row) {
@@ -481,13 +498,14 @@ async function upsertTwitterMetricsRow(db, row) {
 
   await db
     .prepare(
-      `INSERT INTO twitter_metrics (date, following, followers)
-       VALUES (?1, ?2, ?3)
+      `INSERT INTO twitter_metrics (date, following, followers, posts)
+       VALUES (?1, ?2, ?3, ?4)
        ON CONFLICT(date) DO UPDATE SET
          following = excluded.following,
-         followers = excluded.followers`
+         followers = excluded.followers,
+         posts = excluded.posts`
     )
-    .bind(row.date, row.following, row.followers)
+    .bind(row.date, row.following, row.followers, row.posts)
     .run();
 }
 
@@ -580,6 +598,7 @@ async function handleApi(request, env, pathname) {
         metrics: {
           following: latest.following,
           followers: latest.followers,
+          posts: latest.posts,
         },
       });
     } catch (error) {

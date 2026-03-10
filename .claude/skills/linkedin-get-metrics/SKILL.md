@@ -23,5 +23,5 @@ Get:
 }
 ``` 
 
-1. The dashboard metrics panel
-2. The `/api/linkedin/metrics`
+1. The dashboard metrics panel: https://cf-cl-lin-2.diogodebastos18.workers.dev/
+2. endpoint: The `/api/linkedin/metrics

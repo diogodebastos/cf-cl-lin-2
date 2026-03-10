@@ -1,6 +1,6 @@
 ---
 name: get-cloudflare-jobs
-description: Use when the user asks to fetch Cloudflare jobs from the running local app at http://localhost:8787, or to adjust the dashboard jobs rendering contract used by public/app.js and public/index.html.
+description: Use when the user asks to fetch Cloudflare jobs from the running local app at https://cf-cl-lin-2.diogodebastos18.workers.dev, or to adjust the dashboard jobs rendering contract used by public/app.js and public/index.html.
 ---
 
 # Get Cloudflare Jobs From Local App
@@ -11,7 +11,7 @@ Fetch Cloudflare openings from the running app instance and keep the response fo
 
 Primary source for this skill:
 
-- http://localhost:8787/api/cloudflare/open-positions
+- https://cf-cl-lin-2.diogodebastos18.workers.dev/api/cloudflare/open-positions
 
 ## Use When
 
@@ -45,7 +45,7 @@ Required job fields used by renderer:
 ## Workflow
 
 1. Call the local endpoint:
-	- GET http://localhost:8787/api/cloudflare/open-positions
+	- GET https://cf-cl-lin-2.diogodebastos18.workers.dev/api/cloudflare/open-positions
 2. Validate response:
 	- `ok === true`
 	- `jobs` is an array
@@ -64,7 +64,7 @@ If local fetch fails, surface:
 - status code or network error
 - response body when available
 
-If endpoint is unavailable, tell the user the app is not reachable at http://localhost:8787 and ask whether to use a different base URL.
+If endpoint is unavailable, tell the user the app is not reachable at https://cf-cl-lin-2.diogodebastos18.workers.dev and ask whether to use a different base URL.
 
 ## Notes
 
