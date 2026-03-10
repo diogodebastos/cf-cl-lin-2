@@ -1,95 +1,95 @@
 # Copilot Instructions
 
-## Mission
+## Project Purpose and MISSION
 
-**Take control of this LinkedIn account until Cloudflare hires Diogo de Bastos.**
+Personal hiring campaign tool to help **Diogo de Bastos** get hired at Cloudflare. Every feature should serve that goal: monitoring X (Twitter) metrics, rendering the CV, fetching Cloudflare job openings, and enabling LinkedIn interactions. When suggesting changes or new features, ask: *does this help get Diogo hired at Cloudflare?*
 
-This repo is a personal campaign tool. Every feature exists to serve that goal: monitoring LinkedIn activity, composing and posting content, tracking metrics, fetching Cloudflare job openings, and keeping the CV sharp. When suggesting changes or new features, always ask: *does this help get Diogo hired at Cloudflare?*
-
-## Dev Commands
+## Commands
 
 ```bash
-npm install       # install dependencies
-npm run dev       # start with --watch (auto-restart on file changes)
-npm start         # start without watch
+npm install           # install dependencies
+npm run dev           # run worker locally (alias: npm start, npm run dev:worker) — always --remote, uses live D1
+npm run deploy:worker # deploy to production
+npm run d1:migrate    # create D1 schema on remote
+npm run d1:migrate:local # create D1 schema locally
 ```
 
-App runs on `http://localhost:8787` (configurable via `PORT` env var). No test or lint scripts exist.
+There are no tests or lint scripts.
 
 ## Architecture
 
-Single-file Express backend (`server.js`) serving a vanilla JS frontend (`public/`).
+### Runtime: Cloudflare Worker + D1
 
-**Request flow:**
-1. User visits `/` → served `public/index.html` + `public/app.js`
-2. OAuth starts at `/auth/linkedin` → LinkedIn callback at `/auth/linkedin/callback`
-3. After OAuth, the callback page injects fetched data into browser `localStorage` and redirects back to the dashboard
-4. The frontend reads `localStorage` to render the payload; no API session persists client-side
+- **`src/worker.js`** — entire backend: all API routes, business logic, CV content, PDF generation, and Twitter scraping. Single file, no module splitting.
+- **`public/`** — static frontend served via the `ASSETS` binding (`index.html`, `app.js`, `styles.css`). Vanilla JS, no framework.
+- **`wrangler.toml`** — declares `ASSETS` binding, `DB` (D1), and `TWITTER_PUBLIC_URL` var.
+- **`server.js`** — exits immediately with an error. D1-only; Node.js runtime is not supported.
 
-**Auth state is in-memory only** — `currentLinkedInAuth` and the `sessions` Map are both module-level variables in `server.js`. They are lost on restart. Single-user design: re-authenticating overwrites the previous session.
+### Routing pattern
 
-**LinkedIn metrics** are persisted in SQLite at `data/linkedin-metrics.db`. The DB is initialized lazily on first use via `initializeLinkedInMetricsDb()`, which also seeds default rows if the table is empty.
+All API routes are handled by a single `handleApi(request, env, pathname)` function in `src/worker.js` using a flat `if`-chain of `pathname === "/api/..."` checks. To add a new route, add another `if` block before the catch-all at the bottom:
 
-**CV** is a Markdown file at `data/linkedin_data/cv.md` that supports `{% include filename.md %}` directives (resolved server-side by `resolveMarkdownIncludes()`). The other `.md` files in that directory are included fragments. PDF export is rendered from these tokens using PDFKit — no HTML intermediate.
+```js
+if (pathname === "/api/your/endpoint" && request.method === "GET") {
+  return json({ ok: true, ... });
+}
+```
 
-**Cloudflare jobs** are fetched live from the Greenhouse API and filtered to Lisbon + AI/Data title keywords. The department tree is flattened recursively by `flattenDepartments()`.
+Unmatched `/api/*` and `/auth/*` paths return `404`. Everything else falls through to `env.ASSETS.fetch(request)`.
 
-## Key Conventions
+### API endpoints
 
-**SQLite helpers** — `server.js` defines three promise wrappers (`dbRun`, `dbGet`, `dbAll`) around the callback-based `sqlite3` API. Always use these instead of raw `db.run`/`db.get`/`db.all`.
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/twitter/profile` | Scrape public X profile |
+| GET | `/api/twitter/metrics` | Latest metrics from D1 |
+| GET | `/api/twitter/metrics-history` | All historical rows |
+| POST | `/api/twitter/metrics-history` | Upsert a metrics row |
+| GET | `/api/twitter/preview` | Preview metrics payload |
+| GET | `/api/cv` | CV as markdown (resolved includes) |
+| GET | `/api/cv/pdf` | CV as PDF blob |
+| GET | `/api/cloudflare/open-positions` | Filtered Cloudflare jobs (Lisbon + ai/data) |
 
-**Error normalization** — `safeError(error)` extracts the relevant fields from an axios error (status, statusText, data) and truncates large response bodies at 1200 chars. Use it whenever catching axios errors.
+### CV system
 
-**Input validation** — `parseMetricsPayload()` validates and coerces metrics POST bodies. Return `{ ok: false, error: "..." }` for validation errors, `{ ok: true, value: {...} }` for success — this pattern is used throughout both server responses and internal helpers.
+CV content lives as inline strings in the `cvFiles` object at the top of `src/worker.js` (not on disk). The entry point is `cvFiles["cv.md"]`, which uses `{% include filename.md %}` directives resolved recursively by `resolveCvIncludes()`. Circular includes throw. Emoji are stripped before PDF rendering via `sanitizePdfText()`.
 
-**Image proxy** — `/api/linkedin/photo` proxies profile images and enforces `isAllowedImageHost()`, which only permits `*.licdn.com` and `*.linkedin.com`. Do not relax this allowlist.
+Source-of-truth CV data for edits is in `data/cv_data/*.md` — but these files are **not** read at runtime. They are the canonical reference used to keep the inline `cvFiles` strings in `src/worker.js` up to date (especially for LinkedIn CV updates via the `linkedin-update-cv` skill).
 
-**LinkedIn posting** — requires `w_member_social` scope and uses the UGC Posts API (`/v2/ugcPosts`) with header `X-Restli-Protocol-Version: 2.0.0`. The actor URN comes from `currentLinkedInAuth.actor.urn`.
-
-**PDF rendering** — emoji must be stripped before writing to PDFKit (built-in fonts can't render them). `sanitizePdfText()` handles this. Inline link segments are tracked via `extractInlineSegments()` / `writeSegments()` which handle `continued: true` chaining in PDFKit.
-
-## Environment Variables
-
-See `.env.example` for the full list. Required at runtime:
-
-| Variable | Purpose |
-|---|---|
-| `LINKEDIN_CLIENT_ID` | OAuth app client ID |
-| `LINKEDIN_CLIENT_SECRET` | OAuth app client secret |
-| `LINKEDIN_REDIRECT_URI` | Must match LinkedIn app settings (default: `http://localhost:8787/auth/linkedin/callback`) |
-| `LINKEDIN_SCOPES` | Space-separated; recommended: `openid profile email w_member_social` |
-| `LINKEDIN_PUBLIC_URL` | Optional public profile URL for metadata fallback |
-
-## API Routes
-
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/auth/linkedin` | Initiates OAuth PKCE flow |
-| GET | `/auth/linkedin/callback` | Exchanges code, fetches profile, returns HTML that sets localStorage |
-| GET | `/api/linkedin/metrics` | Latest metrics row from SQLite |
-| GET | `/api/linkedin/metrics-history` | All rows ordered by date ASC |
-| POST | `/api/linkedin/metrics-history` | Upsert a metrics row (`{ date, profileViews, connections, posts, messagesSent }`) |
-| GET | `/api/linkedin/photo` | Proxies LinkedIn CDN images (allowlisted hosts only) |
-| POST | `/api/linkedin/post` | Publishes a UGC post (requires active auth + `w_member_social`) |
-| GET | `/api/linkedin/preview` | Public profile metadata scrape (no auth required) |
-| GET | `/api/cloudflare/open-positions` | Cloudflare Lisbon AI/Data jobs from Greenhouse |
-| GET | `/api/cv` | Compiled CV markdown (includes resolved) |
-| GET | `/api/cv/pdf` | CV as a PDF download |
-| GET | `/health` | `{ ok: true }` |
-
-## SQLite Schema
+### D1 schema
 
 ```sql
-CREATE TABLE linkedin_metrics (
-  date          TEXT PRIMARY KEY,  -- YYYY-MM-DD
-  profile_views INTEGER NOT NULL,
-  connections   INTEGER NOT NULL,
-  posts         INTEGER NOT NULL,
-  messages_sent INTEGER NOT NULL
+CREATE TABLE twitter_metrics (
+  date      TEXT PRIMARY KEY,  -- YYYY-MM-DD
+  following INTEGER NOT NULL,
+  followers INTEGER NOT NULL
 );
 ```
 
-Inspect the DB directly:
-```bash
-sqlite3 data/linkedin-metrics.db < sql/print_db.sql
-```
+`initializeTwitterMetricsDb()` seeds the table with `defaultTwitterMetricsRows` if it is empty.
+
+### Cloudflare jobs filtering
+
+Jobs are fetched from the Greenhouse API (`boards-api.greenhouse.io/v1/boards/cloudflare/departments/`), flattened from a department tree, then filtered to Lisbon location AND title matching `/ai|data/i`. The frontend renders them via `renderCloudflareJobs()`. The response shape (`ok`, `fetchedAt`, `totalMatching`, `jobs[]` with `title`, `url`, `location`, `firstPublished`) must be preserved for dashboard compatibility.
+
+## Claude Skills (`.claude/skills/`)
+
+Specialized agent scripts invoked by Claude/Copilot for browser-automation tasks:
+
+| Skill | Trigger | Notes |
+|-------|---------|-------|
+| `get-cloudflare-jobs` | fetch jobs from live app | Validates against `https://cf-cl-lin-2.diogodebastos18.workers.dev` |
+| `cloudflare-apply-job` | apply to a Cloudflare job | Uses pre-filled form data (name, email, city) |
+| `linkedin-get-metrics` | fetch LinkedIn metrics | Profile views, connections, posts |
+| `linkedin-send-message` | send LinkedIn message | Increments `messagesSent` metric in dashboard |
+| `linkedin-send-invitation` | send LinkedIn connection invite | Always discloses AI assistance in message |
+| `linkedin-update-cv` | update LinkedIn profile | Uses `data/cv_data/` as source of truth; never fabricate |
+
+## Key Conventions
+
+- **Response helper**: All JSON responses use a local `json(body, status)` helper (defined in `src/worker.js`) that sets `Content-Type: application/json`. Always use it — don't construct `Response` objects manually for API routes.
+- **Error shape**: Error responses follow `{ ok: false, error: "...", detail: {...} }`. Success responses start with `{ ok: true, ... }`.
+- **No secrets in `wrangler.toml`**: Sensitive values (e.g., `ANTHROPIC_API_KEY`) go in `.env` (gitignored) or Cloudflare secrets, not in `[vars]`.
+- **Frontend metrics dashboard**: `public/app.js` uses vanilla JS with `$("element-id")` as a shorthand for `document.getElementById`. Chart.js handles the metrics history charts; call `destroyMetricCharts()` before re-rendering.
+- **PDF rendering**: Uses `pdfkit/js/pdfkit.standalone.js` (browser/edge-compatible build). Custom `extractInlineSegments()` walks markdown-it tokens to handle bold/italic inline formatting.

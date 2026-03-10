@@ -14,3 +14,8 @@ database_id = "694de08e-72d6-43c2-8b07-f52bc903563d"
 
 [vars]
 TWITTER_PUBLIC_URL = "https://x.com/jilvaa198175"
+
+[[rules]]
+type = "Text"
+globs = ["**/*.md"]
+fallthrough = true
