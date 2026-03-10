@@ -5,7 +5,10 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "dev:worker": "wrangler dev",
+    "deploy:worker": "wrangler deploy",
+    "d1:migrate": "wrangler d1 execute linkedin_metrics --remote --file=./migrations/0001_init.sql"
   },
   "keywords": [
     "linkedin",
@@ -14,6 +17,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "devDependencies": {
+    "wrangler": "^4.5.0"
+  },
   "dependencies": {
     "axios": "^1.8.4",
     "dotenv": "^16.4.7",
