@@ -1,32 +1,14 @@
 import MarkdownIt from "markdown-it";
 import PDFDocument from "pdfkit/js/pdfkit.standalone.js";
 
-const defaultLinkedInMetricsRows = [
-  {
-    date: "2026-02-24",
-    profileViews: 124,
-    connections: 381,
-    posts: 18,
-    messagesSent: 22,
-  },
-  {
-    date: "2026-03-03",
-    profileViews: 167,
-    connections: 394,
-    posts: 20,
-    messagesSent: 29,
-  },
-  {
-    date: "2026-03-10",
-    profileViews: 213,
-    connections: 409,
-    posts: 23,
-    messagesSent: 34,
-  },
+const defaultTwitterMetricsRows = [
+  { date: "2026-02-24", following: 418, followers: 502 },
+  { date: "2026-03-03", following: 429, followers: 534 },
+  { date: "2026-03-10", following: 441, followers: 563 },
 ];
 
 const cvFiles = {
-  "cv.md": `Lisbon, Portugal | [email](mailto:diogodebastos18@gmail.com) | [LinkedIn](https://www.linkedin.com/in/diogodebastos) | [GitHub](https://github.com/diogodebastos) | [Google Scholar](https://scholar.google.com/citations?user=6f2lV5YAAAAJ&hl=en)
+  "cv.md": `Lisbon, Portugal | [email](mailto:diogodebastos18@gmail.com) | [X](https://x.com/jilvaa198175) | [GitHub](https://github.com/diogodebastos) | [Google Scholar](https://scholar.google.com/citations?user=6f2lV5YAAAAJ&hl=en)
 
 👉 [try talking with my CV](https://diogodebastos.vercel.app/)
 
@@ -120,17 +102,11 @@ Board based on TOFHIR1” (internal note)
 };
 
 function getDb(env) {
-  return env.DB || env.linkedin_metrics || null;
+  return env.DB || null;
 }
 
-function isAllowedImageHost(urlString) {
-  try {
-    const parsed = new URL(urlString);
-    const host = parsed.hostname.toLowerCase();
-    return host.endsWith("licdn.com") || host.endsWith("linkedin.com");
-  } catch (_error) {
-    return false;
-  }
+function getTwitterPublicUrl(env) {
+  return env.TWITTER_PUBLIC_URL || "https://x.com/jilvaa198175";
 }
 
 function flattenDepartments(departments, collector = []) {
@@ -164,47 +140,6 @@ function getJobPostingLocations(job) {
   return [];
 }
 
-function getLinkedInPublicUrl(env) {
-  return env.LINKEDIN_PUBLIC_URL || "";
-}
-
-function getLinkedInScopes(env) {
-  return env.LINKEDIN_SCOPES || "openid profile";
-}
-
-function requiredHeaders(token) {
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-}
-
-function makeState() {
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
-}
-
-function decodeJwtClaims(jwt) {
-  if (!jwt || typeof jwt !== "string") {
-    return null;
-  }
-
-  const parts = jwt.split(".");
-  if (parts.length < 2) {
-    return null;
-  }
-
-  try {
-    const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-    const decoded = atob(padded);
-    return JSON.parse(decoded);
-  } catch (_error) {
-    return null;
-  }
-}
-
 async function safeErrorFromResponse(response) {
   let data = null;
   try {
@@ -227,241 +162,6 @@ async function safeErrorFromResponse(response) {
     statusText: response.statusText,
     data,
   };
-}
-
-function buildDiagnostics(apiResults, scopeString) {
-  const scopes = new Set((scopeString || "").split(/\s+/).filter(Boolean));
-  const hints = [];
-
-  if (!scopes.has("email")) {
-    hints.push("Add `email` to LINKEDIN_SCOPES to request email claims in OIDC userinfo.");
-  }
-
-  const meError = apiResults.me && !apiResults.me.ok ? apiResults.me.error?.data?.message : "";
-  if (typeof meError === "string" && meError.includes("me.GET.NO_VERSION")) {
-    hints.push(
-      "`/v2/me` is blocked for this app. Keep using OIDC `/v2/userinfo` unless LinkedIn approves additional products/permissions."
-    );
-  }
-
-  const emailError =
-    apiResults.emailAddress && !apiResults.emailAddress.ok
-      ? apiResults.emailAddress.error?.data?.message
-      : "";
-  if (typeof emailError === "string" && emailError.includes("emailAddress.FINDER-members.NO_VERSION")) {
-    hints.push("`/v2/emailAddress` is blocked for this app. Prefer OIDC userinfo email with `email` scope.");
-  }
-
-  return {
-    accessibleEndpoints: Object.entries(apiResults)
-      .filter(([, result]) => result.ok)
-      .map(([key]) => key),
-    blockedEndpoints: Object.entries(apiResults)
-      .filter(([, result]) => !result.ok)
-      .map(([key]) => key),
-    hints,
-  };
-}
-
-async function fetchLinkedInData(accessToken) {
-  const endpoints = [
-    {
-      key: "userinfo",
-      url: "https://api.linkedin.com/v2/userinfo",
-      description: "OpenID profile data",
-    },
-    {
-      key: "me",
-      url: "https://api.linkedin.com/v2/me",
-      description: "Legacy profile endpoint (may require different scopes)",
-    },
-    {
-      key: "emailAddress",
-      url: "https://api.linkedin.com/v2/emailAddress?q=members&projection=(elements*(handle~))",
-      description: "Primary email if permitted",
-    },
-  ];
-
-  const results = {};
-
-  for (const endpoint of endpoints) {
-    try {
-      const response = await fetch(endpoint.url, {
-        headers: requiredHeaders(accessToken),
-      });
-
-      if (!response.ok) {
-        results[endpoint.key] = {
-          ok: false,
-          description: endpoint.description,
-          error: await safeErrorFromResponse(response),
-        };
-        continue;
-      }
-
-      const data = await response.json();
-      results[endpoint.key] = {
-        ok: true,
-        description: endpoint.description,
-        data,
-      };
-    } catch (error) {
-      results[endpoint.key] = {
-        ok: false,
-        description: endpoint.description,
-        error: { message: error.message },
-      };
-    }
-  }
-
-  return results;
-}
-
-async function initializeLinkedInAuthDb(db) {
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS oauth_states (
-        state TEXT PRIMARY KEY,
-        created_at TEXT NOT NULL
-      )`
-    )
-    .run();
-
-  await db
-    .prepare(
-      `CREATE TABLE IF NOT EXISTS linkedin_auth (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        access_token TEXT NOT NULL,
-        actor_sub TEXT,
-        actor_urn TEXT,
-        actor_name TEXT,
-        authorized_at TEXT NOT NULL
-      )`
-    )
-    .run();
-}
-
-async function storeOAuthState(db, state) {
-  await initializeLinkedInAuthDb(db);
-  await db
-    .prepare(`INSERT OR REPLACE INTO oauth_states (state, created_at) VALUES (?1, ?2)`)
-    .bind(state, new Date().toISOString())
-    .run();
-}
-
-async function consumeOAuthState(db, state) {
-  await initializeLinkedInAuthDb(db);
-  const row = await db.prepare(`SELECT state FROM oauth_states WHERE state = ?1`).bind(state).first();
-
-  if (!row) {
-    return false;
-  }
-
-  await db.prepare(`DELETE FROM oauth_states WHERE state = ?1`).bind(state).run();
-  return true;
-}
-
-async function saveLinkedInAuth(db, auth) {
-  await initializeLinkedInAuthDb(db);
-  await db
-    .prepare(
-      `INSERT INTO linkedin_auth (id, access_token, actor_sub, actor_urn, actor_name, authorized_at)
-       VALUES (1, ?1, ?2, ?3, ?4, ?5)
-       ON CONFLICT(id) DO UPDATE SET
-         access_token = excluded.access_token,
-         actor_sub = excluded.actor_sub,
-         actor_urn = excluded.actor_urn,
-         actor_name = excluded.actor_name,
-         authorized_at = excluded.authorized_at`
-    )
-    .bind(auth.accessToken, auth.actor.sub, auth.actor.urn, auth.actor.name, auth.authorizedAt)
-    .run();
-}
-
-async function getLinkedInAuth(db) {
-  await initializeLinkedInAuthDb(db);
-  const row = await db
-    .prepare(
-      `SELECT access_token, actor_sub, actor_urn, actor_name, authorized_at
-       FROM linkedin_auth
-       WHERE id = 1`
-    )
-    .first();
-
-  if (!row) {
-    return null;
-  }
-
-  return {
-    accessToken: row.access_token,
-    actor: {
-      sub: row.actor_sub,
-      urn: row.actor_urn,
-      name: row.actor_name,
-    },
-    authorizedAt: row.authorized_at,
-  };
-}
-
-async function fetchPublicProfile(publicUrl) {
-  if (!publicUrl) {
-    return {
-      ok: false,
-      error: { message: "LINKEDIN_PUBLIC_URL is not configured." },
-    };
-  }
-
-  try {
-    const response = await fetch(publicUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0",
-      },
-    });
-
-    if (!response.ok) {
-      let data = null;
-      try {
-        data = await response.text();
-      } catch (_error) {
-        data = null;
-      }
-
-      return {
-        ok: false,
-        url: publicUrl,
-        error: {
-          status: response.status,
-          statusText: response.statusText,
-          data,
-        },
-        note:
-          response.status === 999
-            ? "LinkedIn returned authwall protection (HTTP 999). Public scraping is blocked."
-            : null,
-      };
-    }
-
-    const html = await response.text();
-    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
-    const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
-    const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
-
-    return {
-      ok: true,
-      url: publicUrl,
-      data: {
-        title: titleMatch ? titleMatch[1] : null,
-        description: descMatch ? descMatch[1] : null,
-        image: imageMatch ? imageMatch[1] : null,
-      },
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      url: publicUrl,
-      error: { message: error.message },
-    };
-  }
 }
 
 function resolveCvIncludes(content, seen = new Set()) {
@@ -716,116 +416,159 @@ function json(data, status = 200, headers = {}) {
 
 function parseMetricsPayload(payload) {
   const date = typeof payload?.date === "string" ? payload.date.trim() : "";
-  const profileViews = Number(payload?.profileViews);
-  const connections = Number(payload?.connections);
-  const posts = Number(payload?.posts);
-  const messagesSent = Number(payload?.messagesSent);
+  const following = Number(payload?.following);
+  const followers = Number(payload?.followers);
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(`${date}T00:00:00Z`))) {
     return { ok: false, error: "`date` must be in YYYY-MM-DD format." };
   }
 
-  const values = { profileViews, connections, posts, messagesSent };
+  const values = { following, followers };
   for (const [key, value] of Object.entries(values)) {
     if (!Number.isInteger(value) || value < 0) {
       return { ok: false, error: `\`${key}\` must be a non-negative integer.` };
     }
   }
 
-  return {
-    ok: true,
-    value: {
-      date,
-      profileViews,
-      connections,
-      posts,
-      messagesSent,
-    },
-  };
+  return { ok: true, value: { date, following, followers } };
 }
 
-async function initializeLinkedInMetricsDb(db) {
+async function initializeTwitterMetricsDb(db) {
   await db
     .prepare(
-      `CREATE TABLE IF NOT EXISTS linkedin_metrics (
+      `CREATE TABLE IF NOT EXISTS twitter_metrics (
         date TEXT PRIMARY KEY,
-        profile_views INTEGER NOT NULL,
-        connections INTEGER NOT NULL,
-        posts INTEGER NOT NULL,
-        messages_sent INTEGER NOT NULL
+        following INTEGER NOT NULL,
+        followers INTEGER NOT NULL
       )`
     )
     .run();
 
-  const countResult = await db.prepare("SELECT COUNT(*) AS count FROM linkedin_metrics").first();
+  const countResult = await db.prepare("SELECT COUNT(*) AS count FROM twitter_metrics").first();
   const count = Number(countResult?.count || 0);
 
   if (count === 0) {
     const statement = db.prepare(
-      `INSERT INTO linkedin_metrics (date, profile_views, connections, posts, messages_sent)
-       VALUES (?1, ?2, ?3, ?4, ?5)`
+      `INSERT INTO twitter_metrics (date, following, followers)
+       VALUES (?1, ?2, ?3)`
     );
 
-    const batchStatements = defaultLinkedInMetricsRows.map((row) =>
-      statement.bind(row.date, row.profileViews, row.connections, row.posts, row.messagesSent)
+    const batchStatements = defaultTwitterMetricsRows.map((row) =>
+      statement.bind(row.date, row.following, row.followers)
     );
 
     await db.batch(batchStatements);
   }
 }
 
-async function readLinkedInMetricsRows(db) {
-  await initializeLinkedInMetricsDb(db);
+async function readTwitterMetricsRows(db) {
+  await initializeTwitterMetricsDb(db);
 
   const result = await db
     .prepare(
-      `SELECT date, profile_views, connections, posts, messages_sent
-       FROM linkedin_metrics
+      `SELECT date, following, followers
+       FROM twitter_metrics
        ORDER BY date ASC`
     )
     .all();
 
   const rows = Array.isArray(result?.results) ? result.results : [];
-
-  return rows.map((row) => ({
-    date: row.date,
-    profileViews: row.profile_views,
-    connections: row.connections,
-    posts: row.posts,
-    messagesSent: row.messages_sent,
-  }));
+  return rows.map((row) => ({ date: row.date, following: row.following, followers: row.followers }));
 }
 
-async function upsertLinkedInMetricsRow(db, row) {
-  await initializeLinkedInMetricsDb(db);
+async function upsertTwitterMetricsRow(db, row) {
+  await initializeTwitterMetricsDb(db);
 
   await db
     .prepare(
-      `INSERT INTO linkedin_metrics (date, profile_views, connections, posts, messages_sent)
-       VALUES (?1, ?2, ?3, ?4, ?5)
+      `INSERT INTO twitter_metrics (date, following, followers)
+       VALUES (?1, ?2, ?3)
        ON CONFLICT(date) DO UPDATE SET
-         profile_views = excluded.profile_views,
-         connections = excluded.connections,
-         posts = excluded.posts,
-         messages_sent = excluded.messages_sent`
+         following = excluded.following,
+         followers = excluded.followers`
     )
-    .bind(row.date, row.profileViews, row.connections, row.posts, row.messagesSent)
+    .bind(row.date, row.following, row.followers)
     .run();
+}
+
+async function fetchPublicProfile(publicUrl) {
+  if (!publicUrl) {
+    return {
+      ok: false,
+      error: { message: "TWITTER_PUBLIC_URL is not configured." },
+    };
+  }
+
+  try {
+    const response = await fetch(publicUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0",
+      },
+    });
+
+    if (!response.ok) {
+      let data = null;
+      try {
+        data = await response.text();
+      } catch (_error) {
+        data = null;
+      }
+
+      return {
+        ok: false,
+        url: publicUrl,
+        error: {
+          status: response.status,
+          statusText: response.statusText,
+          data,
+        },
+      };
+    }
+
+    const html = await response.text();
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const descMatch = html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+    const imageMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i);
+
+    return {
+      ok: true,
+      url: publicUrl,
+      data: {
+        title: titleMatch ? titleMatch[1] : null,
+        description: descMatch ? descMatch[1] : null,
+        image: imageMatch ? imageMatch[1] : null,
+      },
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      url: publicUrl,
+      error: { message: error.message },
+    };
+  }
 }
 
 async function handleApi(request, env, pathname) {
   const db = getDb(env);
   if (!db) {
-    return json({ ok: false, error: "D1 binding is missing. Expected `DB` or `linkedin_metrics`." }, 500);
+    return json({ ok: false, error: "D1 binding is missing. Expected `DB` or `twitter_metrics`." }, 500);
   }
 
   if (pathname === "/health" && request.method === "GET") {
     return json({ ok: true });
   }
 
-  if (pathname === "/api/linkedin/metrics" && request.method === "GET") {
+  if (pathname === "/api/twitter/profile" && request.method === "GET") {
+    return json({
+      ok: true,
+      handle: "@jilvaa198175",
+      url: getTwitterPublicUrl(env),
+    });
+  }
+
+  if (pathname === "/api/twitter/metrics" && request.method === "GET") {
     try {
-      const rows = await readLinkedInMetricsRows(db);
+      const rows = await readTwitterMetricsRows(db);
       const latest = rows[rows.length - 1] ?? null;
 
       if (!latest) {
@@ -835,17 +578,15 @@ async function handleApi(request, env, pathname) {
       return json({
         ok: true,
         metrics: {
-          profileViews: latest.profileViews,
-          connections: latest.connections,
-          posts: latest.posts,
-          messagesSent: latest.messagesSent,
+          following: latest.following,
+          followers: latest.followers,
         },
       });
     } catch (error) {
       return json(
         {
           ok: false,
-          error: "Failed to load LinkedIn metrics.",
+          error: "Failed to load X metrics.",
           details: error.message,
         },
         500
@@ -853,21 +594,15 @@ async function handleApi(request, env, pathname) {
     }
   }
 
-  if (pathname === "/api/linkedin/metrics-history" && request.method === "GET") {
+  if (pathname === "/api/twitter/metrics-history" && request.method === "GET") {
     try {
-      const rows = await readLinkedInMetricsRows(db);
-
-      return json({
-        ok: true,
-        fetchedAt: new Date().toISOString(),
-        count: rows.length,
-        rows,
-      });
+      const rows = await readTwitterMetricsRows(db);
+      return json({ ok: true, fetchedAt: new Date().toISOString(), count: rows.length, rows });
     } catch (error) {
       return json(
         {
           ok: false,
-          error: "Failed to load LinkedIn metrics database.",
+          error: "Failed to load X metrics database.",
           details: error.message,
         },
         500
@@ -875,7 +610,7 @@ async function handleApi(request, env, pathname) {
     }
   }
 
-  if (pathname === "/api/linkedin/metrics-history" && request.method === "POST") {
+  if (pathname === "/api/twitter/metrics-history" && request.method === "POST") {
     let payload;
 
     try {
@@ -890,21 +625,14 @@ async function handleApi(request, env, pathname) {
     }
 
     try {
-      await upsertLinkedInMetricsRow(db, parsed.value);
-      const rows = await readLinkedInMetricsRows(db);
-
-      return json({
-        ok: true,
-        saved: parsed.value,
-        count: rows.length,
-        rows,
-        fetchedAt: new Date().toISOString(),
-      });
+      await upsertTwitterMetricsRow(db, parsed.value);
+      const rows = await readTwitterMetricsRows(db);
+      return json({ ok: true, saved: parsed.value, count: rows.length, rows, fetchedAt: new Date().toISOString() });
     } catch (error) {
       return json(
         {
           ok: false,
-          error: "Failed to save LinkedIn metrics row.",
+          error: "Failed to save X metrics row.",
           details: error.message,
         },
         500
@@ -912,19 +640,21 @@ async function handleApi(request, env, pathname) {
     }
   }
 
+  if (pathname === "/api/twitter/preview" && request.method === "GET") {
+    const publicProfile = await fetchPublicProfile(getTwitterPublicUrl(env));
+    return json({
+      fetchedAt: new Date().toISOString(),
+      publicProfile,
+      note: "Public preview from the configured X profile URL.",
+    });
+  }
+
   if (pathname === "/api/cv" && request.method === "GET") {
     try {
       const content = resolveCvIncludes(cvFiles["cv.md"]);
       return json({ ok: true, content });
     } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "Failed to read CV file.",
-          details: error.message,
-        },
-        500
-      );
+      return json({ ok: false, error: "Failed to read CV file.", details: error.message }, 500);
     }
   }
 
@@ -942,183 +672,7 @@ async function handleApi(request, env, pathname) {
         },
       });
     } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "Failed to generate CV PDF.",
-          details: error.message,
-        },
-        500
-      );
-    }
-  }
-
-  if (pathname === "/api/linkedin/post-capability" && request.method === "GET") {
-    const auth = await getLinkedInAuth(db);
-    return json({
-      ok: true,
-      authenticated: Boolean(auth?.accessToken),
-      actor: auth?.actor || null,
-      scopes: getLinkedInScopes(env),
-    });
-  }
-
-  if (pathname === "/api/linkedin/photo" && request.method === "GET") {
-    const urlValue = new URL(request.url).searchParams.get("url");
-    if (!urlValue || !isAllowedImageHost(urlValue)) {
-      return json({ ok: false, error: "Invalid or non-LinkedIn image URL." }, 400);
-    }
-
-    try {
-      const upstream = await fetch(urlValue, {
-        headers: {
-          "User-Agent": "Mozilla/5.0",
-          Accept: "image/*",
-        },
-      });
-
-      if (!upstream.ok) {
-        return json(
-          {
-            ok: false,
-            error: "Failed to load LinkedIn image.",
-            detail: {
-              status: upstream.status,
-              statusText: upstream.statusText,
-            },
-          },
-          502
-        );
-      }
-
-      return new Response(upstream.body, {
-        status: 200,
-        headers: {
-          "Content-Type": upstream.headers.get("content-type") || "image/jpeg",
-          "Cache-Control": "public, max-age=3600",
-        },
-      });
-    } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "Failed to load LinkedIn image.",
-          detail: { message: error.message },
-        },
-        502
-      );
-    }
-  }
-
-  if (pathname === "/api/linkedin/preview" && request.method === "GET") {
-    const publicProfile = await fetchPublicProfile(getLinkedInPublicUrl(env));
-    const scopes = getLinkedInScopes(env);
-    const scopeHints = [];
-
-    if (!scopes.split(/\s+/).includes("email")) {
-      scopeHints.push("Add `email` to LINKEDIN_SCOPES for richer OIDC userinfo claims.");
-    }
-
-    return json({
-      fetchedAt: new Date().toISOString(),
-      scopeRequested: scopes,
-      publicProfile,
-      hints: scopeHints,
-      note: "Full private profile data requires OAuth login via /auth/linkedin.",
-    });
-  }
-
-  if (pathname === "/api/linkedin/post" && request.method === "POST") {
-    const auth = await getLinkedInAuth(db);
-    const body = await request.json().catch(() => null);
-    const text = typeof body?.text === "string" ? body.text.trim() : "";
-
-    if (!auth?.accessToken) {
-      return json({ ok: false, error: "Not authenticated. Use /auth/linkedin first." }, 401);
-    }
-
-    if (!auth?.actor?.urn) {
-      return json(
-        {
-          ok: false,
-          error: "Missing LinkedIn actor identity. Re-authenticate and try again.",
-        },
-        400
-      );
-    }
-
-    if (!text) {
-      return json({ ok: false, error: "Post text is required." }, 400);
-    }
-
-    if (text.length > 3000) {
-      return json({ ok: false, error: "Post text is too long (max 3000 chars)." }, 400);
-    }
-
-    const payload = {
-      author: auth.actor.urn,
-      lifecycleState: "PUBLISHED",
-      specificContent: {
-        "com.linkedin.ugc.ShareContent": {
-          shareCommentary: { text },
-          shareMediaCategory: "NONE",
-        },
-      },
-      visibility: {
-        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC",
-      },
-    };
-
-    try {
-      const response = await fetch("https://api.linkedin.com/v2/ugcPosts", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${auth.accessToken}`,
-          "Content-Type": "application/json",
-          "X-Restli-Protocol-Version": "2.0.0",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        return json(
-          {
-            ok: false,
-            error: "LinkedIn post publish failed.",
-            detail: await safeErrorFromResponse(response),
-          },
-          502
-        );
-      }
-
-      let responseData = null;
-      try {
-        responseData = await response.json();
-      } catch (_error) {
-        responseData = null;
-      }
-
-      return json({
-        ok: true,
-        actor: auth.actor,
-        postedAt: new Date().toISOString(),
-        linkedin: {
-          status: response.status,
-          headers: {
-            "x-restli-id": response.headers.get("x-restli-id"),
-          },
-          data: responseData,
-        },
-      });
-    } catch (error) {
-      return json(
-        {
-          ok: false,
-          error: "LinkedIn post publish failed.",
-          detail: { message: error.message },
-        },
-        502
-      );
+      return json({ ok: false, error: "Failed to generate CV PDF.", details: error.message }, 500);
     }
   }
 
@@ -1182,8 +736,7 @@ async function handleApi(request, env, pathname) {
 
       return json({
         ok: true,
-        source:
-          "https://www.cloudflare.com/en-gb/careers/jobs/?location=Lisbon%2C+Portugal&title=ai",
+        source: "https://www.cloudflare.com/en-gb/careers/jobs/?location=Lisbon%2C+Portugal&title=ai",
         filters: {
           location: "Lisbon, Portugal",
           title: titleFilters,
@@ -1205,150 +758,8 @@ async function handleApi(request, env, pathname) {
     }
   }
 
-  if (pathname === "/auth/linkedin" && request.method === "GET") {
-    if (!env.LINKEDIN_CLIENT_ID || !env.LINKEDIN_REDIRECT_URI) {
-      return json(
-        {
-          ok: false,
-          error: "Missing LINKEDIN_CLIENT_ID or LINKEDIN_REDIRECT_URI.",
-        },
-        500
-      );
-    }
-
-    const state = makeState();
-    await storeOAuthState(db, state);
-
-    const authUrl = new URL("https://www.linkedin.com/oauth/v2/authorization");
-    authUrl.searchParams.set("response_type", "code");
-    authUrl.searchParams.set("client_id", env.LINKEDIN_CLIENT_ID);
-    authUrl.searchParams.set("redirect_uri", env.LINKEDIN_REDIRECT_URI);
-    authUrl.searchParams.set("scope", getLinkedInScopes(env));
-    authUrl.searchParams.set("state", state);
-
-    return Response.redirect(authUrl.toString(), 302);
-  }
-
-  if (pathname === "/auth/linkedin/callback" && request.method === "GET") {
-    const url = new URL(request.url);
-    const code = url.searchParams.get("code");
-    const state = url.searchParams.get("state");
-    const oauthError = url.searchParams.get("error");
-    const oauthErrorDescription = url.searchParams.get("error_description");
-
-    if (oauthError) {
-      const redirectUrl = new URL("/", url.origin);
-      redirectUrl.searchParams.set("oauthError", `${oauthError}: ${oauthErrorDescription || "Unknown error"}`);
-      return Response.redirect(redirectUrl.toString(), 302);
-    }
-
-    if (!state || !(await consumeOAuthState(db, state))) {
-      return Response.redirect(`${url.origin}/?oauthError=Invalid%20or%20expired%20state`, 302);
-    }
-
-    if (!code) {
-      return Response.redirect(`${url.origin}/?oauthError=No%20authorization%20code%20received`, 302);
-    }
-
-    if (!env.LINKEDIN_CLIENT_ID || !env.LINKEDIN_CLIENT_SECRET || !env.LINKEDIN_REDIRECT_URI) {
-      return json(
-        {
-          ok: false,
-          error: "Missing LinkedIn OAuth env vars.",
-        },
-        500
-      );
-    }
-
-    try {
-      const params = new URLSearchParams();
-      params.set("grant_type", "authorization_code");
-      params.set("code", code);
-      params.set("redirect_uri", env.LINKEDIN_REDIRECT_URI);
-      params.set("client_id", env.LINKEDIN_CLIENT_ID);
-      params.set("client_secret", env.LINKEDIN_CLIENT_SECRET);
-
-      const tokenResponse = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
-      });
-
-      if (!tokenResponse.ok) {
-        const detail = encodeURIComponent(JSON.stringify(await safeErrorFromResponse(tokenResponse), null, 2));
-        return Response.redirect(`${url.origin}/?oauthError=${detail}`, 302);
-      }
-
-      const tokenPayload = await tokenResponse.json();
-      const accessToken = tokenPayload.access_token;
-      const idTokenClaims = decodeJwtClaims(tokenPayload.id_token);
-      const apiResults = await fetchLinkedInData(accessToken);
-      const publicProfile = await fetchPublicProfile(getLinkedInPublicUrl(env));
-      const diagnostics = buildDiagnostics(apiResults, getLinkedInScopes(env));
-
-      const actorSub = apiResults.userinfo?.ok ? apiResults.userinfo?.data?.sub : null;
-      const actorUrn = actorSub ? `urn:li:person:${actorSub}` : null;
-
-      const auth = {
-        accessToken,
-        actor: {
-          sub: actorSub,
-          urn: actorUrn,
-          name: apiResults.userinfo?.data?.name || null,
-        },
-        authorizedAt: new Date().toISOString(),
-      };
-
-      await saveLinkedInAuth(db, auth);
-
-      const payload = {
-        fetchedAt: new Date().toISOString(),
-        tokenMeta: {
-          expiresIn: tokenPayload.expires_in,
-          scopeRequested: getLinkedInScopes(env),
-          hasIdToken: Boolean(tokenPayload.id_token),
-        },
-        idTokenClaims,
-        apiResults,
-        publicProfile,
-        diagnostics,
-        posting: {
-          authenticated: true,
-          actor: auth.actor,
-        },
-      };
-
-      const serializedPayload = JSON.stringify(payload).replace(/</g, "\\u003c");
-
-      return new Response(
-        `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>LinkedIn Data Loaded</title>
-  </head>
-  <body>
-    <script>
-      localStorage.setItem("linkedinData", JSON.stringify(${serializedPayload}));
-      window.location.replace("/");
-    </script>
-  </body>
-</html>`,
-        {
-          headers: { "Content-Type": "text/html; charset=utf-8" },
-        }
-      );
-    } catch (error) {
-      const detail = encodeURIComponent(JSON.stringify({ message: error.message }, null, 2));
-      return Response.redirect(`${url.origin}/?oauthError=${detail}`, 302);
-    }
-  }
-
-  if (pathname.startsWith("/api/")) {
-    return json({ ok: false, error: "Endpoint not implemented in Worker yet." }, 404);
+  if (pathname.startsWith("/api/") || pathname.startsWith("/auth/")) {
+    return json({ ok: false, error: "Endpoint not implemented." }, 404);
   }
 
   return null;

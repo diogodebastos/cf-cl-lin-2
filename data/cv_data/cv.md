@@ -1,4 +1,4 @@
-Lisbon, Portugal | [email](mailto:diogodebastos18@gmail.com) | [LinkedIn](https://www.linkedin.com/in/diogodebastos) | [GitHub](https://github.com/diogodebastos) | [Google Scholar](https://scholar.google.com/citations?user=6f2lV5YAAAAJ&hl=en)
+Lisbon, Portugal | [email](mailto:diogodebastos18@gmail.com) | [X](https://x.com/jilvaa198175) | [GitHub](https://github.com/diogodebastos) | [Google Scholar](https://scholar.google.com/citations?user=6f2lV5YAAAAJ&hl=en)
 
 👉 [try talking with my CV](https://diogodebastos.vercel.app/)
 
