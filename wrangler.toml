@@ -1,0 +1,18 @@
+name = "cf-cl-lin-2"
+main = "src/worker.js"
+compatibility_date = "2026-03-10"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "linkedin_metrics"
+database_id = "694de08e-72d6-43c2-8b07-f52bc903563d"
+
+[vars]
+LINKEDIN_REDIRECT_URI = "https://cf-cl-lin-2.diogodebastos18.workers.dev/auth/linkedin/callback"
+LINKEDIN_SCOPES = "openid profile email w_member_social"
+LINKEDIN_PUBLIC_URL = "https://www.linkedin.com/in/diogodebastos/"
