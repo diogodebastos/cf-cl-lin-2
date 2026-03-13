@@ -60,11 +60,7 @@ Static frontend is served via `ASSETS` from `public/`.
 
 ### D1 Database
 
-Use a D1 database named `twitter_metrics` and run:
-
-```bash
-npm run d1:migrate
-```
+Use a D1 database named `twitter_metrics`
 
 This creates:
 
