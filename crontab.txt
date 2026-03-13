@@ -1,0 +1,3 @@
+#crontab -l > crontab.txt && ls -l crontab.txt && wc -l crontab.txt
+0 12 * * * /bin/bash run-x-post-of-the-day.sh >> /tmp/x-post-test.log 2>&1
+0 22 * * * /bin/bash run-x-screenshot-of-the-day.sh >> /tmp/x-screenshot-test.log 2>&1

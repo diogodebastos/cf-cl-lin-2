@@ -2,7 +2,7 @@
 
 ## Project Purpose and MISSION
 
-Personal hiring campaign tool to help **Diogo de Bastos** get hired at Cloudflare. Every feature should serve that goal: monitoring X (Twitter) metrics, rendering the CV, fetching Cloudflare job openings, and enabling LinkedIn interactions. When suggesting changes or new features, ask: *does this help get Diogo hired at Cloudflare?*
+Personal hiring campaign tool to help **Diogo de Bastos** get hired at Cloudflare. Every feature should serve that goal: monitoring X (Twitter) metrics, rendering the CV, fetching Cloudflare job openings, and enabling X (Twitter) interactions. When suggesting changes or new features, ask: *does this help get Diogo hired at Cloudflare?*
 
 ## Commands
 
@@ -10,8 +10,6 @@ Personal hiring campaign tool to help **Diogo de Bastos** get hired at Cloudflar
 npm install           # install dependencies
 npm run dev           # run worker locally (alias: npm start, npm run dev:worker) — always --remote, uses live D1
 npm run deploy:worker # deploy to production
-npm run d1:migrate    # create D1 schema on remote
-npm run d1:migrate:local # create D1 schema locally
 ```
 
 There are no tests or lint scripts.
@@ -55,7 +53,7 @@ Unmatched `/api/*` and `/auth/*` paths return `404`. Everything else falls throu
 
 CV content lives as inline strings in the `cvFiles` object at the top of `src/worker.js` (not on disk). The entry point is `cvFiles["cv.md"]`, which uses `{% include filename.md %}` directives resolved recursively by `resolveCvIncludes()`. Circular includes throw. Emoji are stripped before PDF rendering via `sanitizePdfText()`.
 
-Source-of-truth CV data for edits is in `data/cv_data/*.md` — but these files are **not** read at runtime. They are the canonical reference used to keep the inline `cvFiles` strings in `src/worker.js` up to date (especially for LinkedIn CV updates via the `linkedin-update-cv` skill).
+Source-of-truth CV data for edits is in `data/cv_data/*.md` — but these files are **not** read at runtime. They are the canonical reference used to keep the inline `cvFiles` strings in `src/worker.js` up to date (especially for X CV updates via the `X-update-cv` skill).
 
 ### D1 schema
 
@@ -63,7 +61,8 @@ Source-of-truth CV data for edits is in `data/cv_data/*.md` — but these files 
 CREATE TABLE twitter_metrics (
   date      TEXT PRIMARY KEY,  -- YYYY-MM-DD
   following INTEGER NOT NULL,
-  followers INTEGER NOT NULL
+  followers INTEGER NOT NULL,
+  posts INTEGER NOT NULL
 );
 ```
 
@@ -81,10 +80,7 @@ Specialized agent scripts invoked by Claude/Copilot for browser-automation tasks
 |-------|---------|-------|
 | `get-cloudflare-jobs` | fetch jobs from live app | Validates against `https://cf-cl-lin-2.diogodebastos18.workers.dev` |
 | `cloudflare-apply-job` | apply to a Cloudflare job | Uses pre-filled form data (name, email, city) |
-| `linkedin-get-metrics` | fetch LinkedIn metrics | Profile views, connections, posts |
-| `linkedin-send-message` | send LinkedIn message | Increments `messagesSent` metric in dashboard |
-| `linkedin-send-invitation` | send LinkedIn connection invite | Always discloses AI assistance in message |
-| `linkedin-update-cv` | update LinkedIn profile | Uses `data/cv_data/` as source of truth; never fabricate |
+| `X-get-metrics` | fetch X metrics | Profile views, connections, posts |
 
 ## Key Conventions
 
