@@ -4,8 +4,7 @@ function $(id) {
 
 const statusText = $("status-text");
 const statusDot = $("status-dot");
-const fetchedAtEl = $("fetched-at");
-const scopeEl = $("scope");
+const techStackEl = $("tech-stack");
 const profileNameEl = $("profile-name");
 const profilePictureEl = $("profile-picture");
 const cvSection = $("cv-section");
@@ -58,7 +57,7 @@ function escapeHtml(value) {
 }
 
 function renderProfileSnapshot() {
-  profileNameEl.textContent = "@jilvaa198175";
+  profileNameEl.textContent = "Claude Takes Control Until Cloudflare Hires Me";
   profilePictureEl.src = "/1768391378809_px.png";
   profilePictureEl.hidden = false;
   profilePictureEl.alt = "@jilvaa198175 profile photo";
@@ -302,8 +301,7 @@ cloudflareRefreshBtn.addEventListener("click", fetchCloudflareJobs);
 metricsRefreshBtn.addEventListener("click", fetchTwitterMetrics);
 cvDownloadBtn.addEventListener("click", downloadCvPdf);
 
-fetchedAtEl.textContent = "Profile locked";
-scopeEl.textContent = "N/A";
+techStackEl.textContent = "Cloudflare D1, Cloudflare Workers";
 setStatus("Profile linked", true);
 renderProfileSnapshot();
 loadCv();

@@ -601,7 +601,7 @@ pre {
   flex-direction: column;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
 }
 
 #panel-profile.is-active {
@@ -654,6 +654,15 @@ pre {
 
   .chart-grid {
     grid-template-columns: 1fr;
+    grid-template-rows: none;
+    grid-auto-rows: minmax(190px, 220px);
+    height: auto;
+  }
+
+  .plots-panel .panel-body {
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
 }
