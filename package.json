@@ -7,9 +7,7 @@
     "start": "wrangler dev --remote",
     "dev": "wrangler dev --remote",
     "dev:worker": "wrangler dev --remote",
-    "deploy:worker": "wrangler deploy",
-    "d1:migrate": "wrangler d1 execute twitter_metrics --remote --command \"CREATE TABLE IF NOT EXISTS twitter_metrics (date TEXT PRIMARY KEY, following INTEGER NOT NULL, followers INTEGER NOT NULL);\"",
-    "d1:migrate:local": "wrangler d1 execute twitter_metrics --local --command \"CREATE TABLE IF NOT EXISTS twitter_metrics (date TEXT PRIMARY KEY, following INTEGER NOT NULL, followers INTEGER NOT NULL);\""
+    "deploy:worker": "wrangler deploy"
   },
   "keywords": [
     "twitter",
